@@ -33,15 +33,15 @@ def send(args):
     pw = args.pw
     sender = args.sender
     receiver = args.receiver
-    subject = args.s
+    subject = "no subject" if args.s is None else args.s
     message = args.message
     encrypt = args.e
     file = args.f
 
     if encrypt == 'ssl':
-        server = smtplib.SMTP_SSL(host, smtp_port)
+        server = smtplib.SMTP_SSL(host, port)
     elif encrypt == 'tls':
-        server = smtplib.SMTP(host, smtp_port)
+        server = smtplib.SMTP(host, port)
         server.ehlo()
         server.starttls()
 
@@ -49,27 +49,25 @@ def send(args):
         server.login(user_id, pw)
 
         msg = MIMEMultipart()
-
-        if subject is not None:
-            msg['Subject'] = subject
-        elif file is not None:
-            msg['Subject'] = "attachment - %s" % file
-
         msg['From'] = sender
         msg['To'] = receiver
         msg['Date'] = formatdate(localtime=True)
+        msg['Subject'] = subject
 
         msg.attach(MIMEText(message))
 
         if file is not None:
-            part = get_part(file)
-            msg.attach(part)
+            if os.path.isdir(file):
+                print("warning: file is directory")
+            else:
+                msg['Subject'] = "%s - attachment %s" % (subject, file)
+                part = get_part(file)
+                msg.attach(part)
 
         server.sendmail(sender, receiver, msg.as_string())
     except Exception as e:
         print(e)
     finally:
-        server.close()
         server.quit()
 
 
@@ -89,7 +87,6 @@ def main():
         parser.add_argument("-v", "--verbose", action="store_true", help="increase output verbosity")
         parser.add_argument("message", metavar="'message'", help="message-text")
         args = parser.parse_args()
-        print("send...")
         send(args)
         print('done')
 
